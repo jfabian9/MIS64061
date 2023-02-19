@@ -1,0 +1,327 @@
+---
+title: "Assignment 1"
+author: "Jacob Fabian"
+date: "2023-02-13"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##First Model
+
+
+```{r cars}
+library(keras)
+imdb <- dataset_imdb(num_words =10000)
+c(c(train_data, train_labels), c(test_data, test_labels)) %<-% imdb
+```
+
+train_labels and test_labels are lists of 0s and 1s where 0 stands for negative and 1 stands for positive
+
+```{r pressure, echo=FALSE}
+str(train_data[[1]])
+train_labels[[1]]
+```
+From the first entry, the train label results a 1 and indicates a positive review for the first entry.
+
+#Prepare the Data
+
+```{r}
+vectorize_sequences <- function(sequences, dimension = 10000) {
+  results <- matrix(0, nrow = length(sequences), ncol = dimension)
+  for(i in 1:length(sequences))
+    results[i, sequences[[i]]] <- 1
+  results
+}
+```
+
+#Vectorize our train and test data.
+
+```{r}
+x_train <- vectorize_sequences(train_data)
+x_test <- vectorize_sequences(test_data)
+y_train <- as.numeric(train_labels)
+y_test <- as.numeric(test_labels)
+str(x_train[1,])
+```
+The first two entries in the train data are classified as positive and the third is negative.
+
+
+#Building
+
+```{r}
+library(keras)
+model <- keras_model_sequential() %>% layer_dense(units = 16, activation = "relu", input_shape = c(10000)) %>% layer_dense(units = 16, activation = "relu") %>% layer_dense(units = 1, activation = "sigmoid")
+model %>% compile(
+  optimizer = "rmsprop",
+  loss = "binary_crossentropy",
+  metrics = c("accuracy")
+)
+```
+
+#Validating
+
+
+```{r}
+val_indices <- 1:10000
+x_val <- x_train[val_indices,]
+partial_x_train <- x_train[-val_indices,]
+y_val <- y_train[val_indices]
+partial_y_train <- y_train[-val_indices]
+```
+
+#Training
+
+
+```{r}
+history <- model %>% fit(
+  partial_x_train,
+  partial_y_train,
+  epochs = 20,
+  batch_size = 512,
+  validation_data = list(x_val, y_val)
+)
+plot(history)
+```
+
+
+#Train another model to avoid overfitting and using less epochs.
+
+
+```{r}
+model <- keras_model_sequential() %>% layer_dense(units = 16, activation = "relu", input_shape = c(10000)) %>% layer_dense(units = 16, activation = "relu") %>% layer_dense(units = 1, activation = "sigmoid")
+model %>% compile(
+  optimizer = "rmsprop",
+  loss = "binary_crossentropy",
+  metrics = c("accuracy")
+)
+model %>% fit(x_train, y_train, epochs = 4, batch_size = 512)
+results <- model %>% evaluate(x_test, y_test)
+results
+```
+
+#Predict  model
+
+```{r}
+model %>% predict(x_test[1:10,])
+```
+
+
+#Question 2 Changing the amount of layers
+
+```{r}
+library(keras)
+model_2 <- keras_model_sequential() %>% layer_dense(units = 16, activation = "relu", input_shape = c(10000)) %>% layer_dense(units = 16, activation = "relu") %>% layer_dense(units = 16, activation = "relu") %>% layer_dense(units = 1, activation = "sigmoid")
+model_2 %>% compile(
+  optimizer = "rmsprop",
+  loss = "binary_crossentropy",
+  metrics = c("accuracy")
+)
+```
+
+
+```{r}
+val_indices <- 1:10000
+x_val <- x_train[val_indices,]
+partial_x_train <- x_train[-val_indices,]
+y_val <- y_train[val_indices]
+partial_y_train <- y_train[-val_indices]
+```
+
+
+```{r}
+history2 <- model_2 %>% fit(
+  partial_x_train,
+  partial_y_train,
+  epochs = 20,
+  batch_size = 512,
+  validation_data = list(x_val, y_val)
+)
+plot(history2)
+```
+
+```{r}
+model_2 %>% fit(x_train, y_train, epochs = 4, batch_size = 512)
+results <- model_2 %>% evaluate(x_test, y_test)
+results
+```
+
+```{r}
+model_2 %>% predict(x_test[1:10,])
+```
+After comparing the prediction to the original, we can see that when we add a another layer, we have a higher loss than previously and lose accuracy.
+
+Comparing the two predictions, the model was confident and became more confident, the units with low confidence became even less confident
+
+I believe this is caused by overfitting of the training data.
+
+#Changing Layer Units
+
+```{r}
+library(keras)
+model_3 <- keras_model_sequential() %>% layer_dense(units = 64, activation = "relu", input_shape = c(10000)) %>% layer_dense(units = 64, activation = "relu") %>% layer_dense(units = 1, activation = "sigmoid")
+model_3 %>% compile(
+  optimizer = "rmsprop",
+  loss = "binary_crossentropy",
+  metrics = c("accuracy")
+)
+```
+
+```{r}
+val_indices <- 1:10000
+x_val <- x_train[val_indices,]
+partial_x_train <- x_train[-val_indices,]
+y_val <- y_train[val_indices]
+partial_y_train <- y_train[-val_indices]
+```
+
+```{r}
+history3 <- model_3 %>% fit(
+  partial_x_train,
+  partial_y_train,
+  epochs = 20,
+  batch_size = 512,
+  validation_data = list(x_val, y_val)
+)
+plot(history3)
+```
+
+```{r}
+model_3 %>% fit(x_train, y_train, epochs = 4, batch_size = 512)
+results <- model_3 %>% evaluate(x_test, y_test)
+results
+```
+
+```{r}
+model_3 %>% predict(x_test[1:10,])
+```
+Adding units had an impact on accuracy and loss.
+
+This change doubled the loss from previously and decreased accuracy by .02 
+
+Again we see the model has a reactions to what it believes is correct and incorrect. Even comparing it to the first one, this model is 100% confident in [2,],[7,], and [10,]. Yet, it is less confident than before for [1,] and [3,]. 
+
+Both of these observations, adding to these models in both units and layers makes the model more overfit with the train data and preforms poorly on the validation and test sets. 
+
+# Question 3 - MSE
+
+```{r}
+library(keras)
+model_4 <- keras_model_sequential() %>% layer_dense(units = 16, activation = "relu", input_shape = c(10000)) %>% layer_dense(units = 16, activation = "relu") %>% layer_dense(units = 1, activation = "sigmoid")
+model_4 %>% compile(
+  optimizer = "rmsprop",
+  loss = "mse",
+  metrics = c("accuracy")
+)
+```
+
+```{r}
+val_indices <- 1:10000
+x_val <- x_train[val_indices,]
+partial_x_train <- x_train[-val_indices,]
+y_val <- y_train[val_indices]
+partial_y_train <- y_train[-val_indices]
+```
+
+```{r}
+history4 <- model_4 %>% fit(
+  partial_x_train,
+  partial_y_train,
+  epochs = 20,
+  batch_size = 512,
+  validation_data = list(x_val, y_val)
+)
+plot(history4)
+```
+
+```{r}
+model_4 %>% fit(x_train, y_train, epochs = 4, batch_size = 512)
+results <- model_4 %>% evaluate(x_test, y_test)
+results
+```
+
+```{r}
+model_4 %>% predict(x_test[1:10,])
+```
+By changing the loss function, we decrease the loss at the expense of a loss in accuracy. 
+
+The model decreases confidence to how the other adjustments have, and [9,] even loses some confidence. 
+
+This is due to how the loss functions measures loss. MSE is Mean Squared Error which is less applicable in this case since the output is forced into the binary form.
+
+# Question 4 - TSNH
+
+```{r}
+library(keras)
+model_5 <- keras_model_sequential() %>% layer_dense(units = 16, activation = "tanh", input_shape = c(10000)) %>% layer_dense(units = 16, activation = "tanh") %>% layer_dense(units = 1, activation = "sigmoid")
+model_5 %>% compile(
+  optimizer = "rmsprop",
+  loss = "binary_crossentropy",
+  metrics = c("accuracy")
+)
+```
+
+```{r}
+val_indices <- 1:10000
+x_val <- x_train[val_indices,]
+partial_x_train <- x_train[-val_indices,]
+y_val <- y_train[val_indices]
+partial_y_train <- y_train[-val_indices]
+```
+
+```{r}
+history5 <- model_5 %>% fit(
+  partial_x_train,
+  partial_y_train,
+  epochs = 20,
+  batch_size = 512,
+  validation_data = list(x_val, y_val)
+)
+plot(history5)
+```
+
+```{r}
+model_5 %>% fit(x_train, y_train, epochs = 4, batch_size = 512)
+results <- model_5 %>% evaluate(x_test, y_test)
+results
+```
+
+```{r}
+model_5 %>% predict(x_test[1:10,])
+```
+
+Tanh also returns units that are more extreme in confidence and much like how we have seen issues with an increase in loss and a decrease in accuracy with the previous alterations.
+
+
+# Question 5- Preform better on Validation
+
+
+
+```{r}
+library(keras)
+l2_regular_model <- keras_model_sequential() %>% layer_dense(units = 16, kernel_regularizer = regularizer_l2(0.001), activation = "relu", input_shape = c(10000)) %>% layer_dropout(rate = 0.5) %>% layer_dense(units = 16, kernel_regularizer = regularizer_l2(0.001), activation = "relu")  %>% layer_dropout(rate = 0.5) %>% layer_dense(units = 1, activation = "sigmoid")
+l2_regular_model %>% compile(
+  optimizer = "rmsprop",
+  loss = "mse",
+  metrics = c("accuracy")
+)
+```
+
+```{r}
+l2_model_hist <- l2_regular_model %>% fit(
+  x_train, y_train,
+  epochs = 20,
+  batch_size = 512,
+  validation_data = list(x_test, y_test)
+)
+plot(l2_model_hist)
+```
+
+
+# Results - 4 epochs are the optimal number of epochs
+
+# With 4 epochs, this model decreases slightly in accuracy but reduces loss greatly. 
